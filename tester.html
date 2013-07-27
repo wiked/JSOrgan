@@ -1,0 +1,22 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+</head>
+<body>
+    <canvas id="wikCanvas" height="600" width="800" tabindex="1"></canvas>
+    <div>
+        <input type="range" id="stopSlider2" min ="0" max="100" onchange="wikSound.setStopVals(2);" />
+        <input type="range" id="stopSlider4" min ="0" max="100" onchange="wikSound.setStopVals(4);" />
+        <input type="range" id="stopSlider8" min ="0" max="100" onchange="wikSound.setStopVals(8);" />
+        <input type="range" id="stopSlider16" min ="0" max="100" onchange="wikSound.setStopVals(16);" />
+        <input type="range" id="stopSlider32" min ="0" max="100" onchange="wikSound.setStopVals(32);" />
+    </div>
+    <script src="wikSound.js"></script>
+    <script type="text/javascript">
+        document.body.onload = function () { wikSound.init(document.getElementById("wikCanvas")); };
+    </script>
+</body>
+</html>
