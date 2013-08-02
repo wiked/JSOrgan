@@ -6,7 +6,8 @@
     , lastKeyId: ""
     , lastMeta: ""
     , lastNote: ""
-    , usingExternal: false
+    , lastPitch: 0
+    , usingExternal: true
     , currentOctave: 0
     , stx: null
     , bOrgan: true
@@ -71,6 +72,34 @@
         }
         return ret;
     }
+
+    , initNotes: function () {
+        var keyNames = ["c", "cs", "d", "ds", "e", "f", "fs", "g", "gs", "a", "as", "b"];
+        
+        for (var octave = 0; octave < 8; ++octave) {
+            wikSound.notes[octave] = [];
+            for (var i in keyNames) {
+                var iKey = ((octave * 12) + parseInt(i))-8;
+                if (wikSound.notes[keyNames[i]] == null) {
+                    wikSound.notes[keyNames[i]] = {};
+                }
+                var pitch = Math.pow(2, ((iKey - 49) / 12)) * 440.0000;
+                if (octave == 0 && parseInt(i) >= 9 && parseInt(i)) {
+                    wikSound.notes[keyNames[i]][octave] = pitch;
+                }
+                else if (octave == 7 && i == 0) {
+                    wikSound.notes[keyNames[i]][octave] = pitch;
+                }
+                else if(octave > 0 && octave < 8) {
+                    wikSound.notes[keyNames[i]][octave] = pitch;
+                }                
+            }
+
+        }
+
+    }
+
+    
     , initKeys: function () {
         var keyNames = ["c", "cs", "d", "ds", "e", "f", "fs", "g", "gs", "a", "as", "b"];
         for (var octave = 0; octave < 8; ++octave) {
@@ -80,7 +109,11 @@
                 wikSound.keysDown[iKey] = false;
                 wikSound.keyTypes[iKey] = keyNames[i].indexOf("s");
                 var note = keyNames[i];
-                wikSound.keys[octave][i] = {osc:null,vol:null,name:keyNames[i],pitch:octave};
+                var setPitch = null;
+                if (wikSound.notes[note][octave] != null) {
+                    setPitch = octave;
+                }
+                wikSound.keys[octave][i] = {osc:null,vol:null,name:keyNames[i],pitch:setPitch};
             }
         }
 
@@ -88,6 +121,7 @@
 
     , init: function (cnv) {
         wikSound.cnv = cnv;
+        wikSound.initNotes();
         wikSound.initKeys();
         var ctx = wikSound.getCtx();
         wikSound.createAllNotes();
@@ -111,7 +145,7 @@
             wikSound.blankScreen(ctx);
             ctx.fillStyle = "#000000";
             ctx.fillText("Code: " + wikSound.lastKeyCode + ", Id: " + wikSound.lastKeyId + ", meta: " + wikSound.lastMeta, 50, 50);
-            ctx.fillText("LastNote: " + wikSound.lastNote + ", Octave: " + wikSound.currentOctave.toString(), 50, 65);
+            ctx.fillText("LastNote: " + wikSound.lastNote + ", Octave: " + wikSound.currentOctave.toString() + ", Last Pitch: " + wikSound.lastPitch.toString(), 50, 65);
             var keyTop = 70;
             var keyLeft = 50;
             var natW = 10;
@@ -184,15 +218,18 @@
                     wikSound.currentOctave = evt.keyCode - 48;
                     bRepaint = true;
                 }
-                else if (wikSound.keyboardMap.indexOf(evt.keyCode) > -1) {
+                else if (wikSound.keyboardMap.indexOf(evt.keyCode) > -1) {                    
                     var note = wikSound.keys[wikSound.currentOctave][wikSound.keyboardMap.indexOf(evt.keyCode)];
-                    var iKey = (wikSound.currentOctave * 12) + wikSound.keyboardMap.indexOf(evt.keyCode);
-                    wikSound.keysDown[iKey] = true;
-                    wikSound.lastNote = note.name;
-                    if (note.vol != null) {
-                        note.vol.gain.value = 0.1;
+                    if ( wikSound.notes[note.name][wikSound.currentOctave] != null) {
+                        var iKey = (wikSound.currentOctave * 12) + wikSound.keyboardMap.indexOf(evt.keyCode);
+                        wikSound.keysDown[iKey] = true;
+                        wikSound.lastNote = note.name;
+                        wikSound.lastPitch = wikSound.notes[note.name][wikSound.currentOctave];
+                        if (note.vol != null) {
+                            note.vol.gain.value = 0.5;
+                        }
+                        bRepaint = true;
                     }
-                    bRepaint = true;
                 }
 
                 if (bRepaint) {
@@ -260,169 +297,48 @@
         }
     }
 
+    /*
+    88	c′′′′′ 5-line octave	C8 Eighth octave	4186.01					
+87	b′′′′	B7	3951.07					
+86	a♯′′′′/b♭′′′′	A♯7/B♭7	3729.31					
+85	a′′′′	A7	3520.00					
+84	g♯′′′′/a♭′′′′	G♯7/A♭7	3322.44					
+83	g′′′′	G7	3135.96					
+82	f♯′′′′/g♭′′′′	F♯7/G♭7	2959.96					
+81	f′′′′	F7	2793.83					
+80	e′′′′	E7	2637.02					
+79	d♯′′′′/e♭′′′′	D♯7/E♭7	2489.02					
+78	d′′′′	D7	2349.32					
+77	c♯′′′′/d♭′′′′	C♯7/D♭7	2217.46					
+76	c′′′′ 4-line octave	C7 Double high C	2093.00					
+75	b′′′	B6	1975.53					
+74	a♯′′′/b♭′′′	A♯6/B♭6	1864.66					
+73	a′′′	A6	1760.00					
+72	g♯′′′/a♭′′′	G♯6/A♭6	1661.22					
+71	g′′′	G6	1567.98					
+70	f♯′′′/g♭′′′	F♯6/G♭6	1479.98					
+69	f′′′	F6	1396.91					
+68	e′′′	E6	1318.51					
+67	d♯′′′/e♭′′′	D♯6/E♭6	1244.51					
+66	d′′′	D6	1174.66					
+65	c♯′′′/d♭′′′	C♯6/D♭6	1108.73					
+64	c′′′ 3-line octave	C6 Soprano C (High C)	1046.50
+    */
     , notes: {
-        f:      { 1: 43.6535, 2: 87.3071, 3: 174.614, 4: 349.228, 5: 698.45, 6: 1396.91 }
-        , fs:   { 1: 46.2493, 2: 92.4986, 3: 184.997, 4: 369.994, 5: 739.989, 6: 1479.98 }
-        , g:    { 1: 48.9994, 2: 97.9989, 3: 195.998, 4: 391.995, 5: 783.991, 6: 1567.98 }
-        , gs:   { 1: 51.9131, 2: 103.826, 3: 207.652, 4: 415.305, 5: 830.609, 6: 1661.22 }
-        , a:    { 0: 27.5000, 1: 55.0000, 2: 110.000, 3: 220.00,  4: 440.00, 5: 880.000, 6: 1760.00 }
-        , as:   { 0: 29.1352, 1: 58.2705, 2: 116.541, 3: 233.082, 4: 466.164, 5: 932.328, 6: 1864.66 }
-        , b:    { 0: 30.8677, 1: 61.7354, 2: 123.471, 3: 246.942, 4: 493.883, 5: 987.767, 6: 1975.53 }
-        , c:    { 1: 32.7032, 2: 65.4064, 3: 130.813, 4: 261.626, 5: 523.2512, 6: 1046.50, 7: 2093.00 }
-        , cs:   { 1: 34.6478, 2: 69.2957, 3: 138.591, 4: 277.183, 5: 554.365, 6: 1108.73 }
-        , d:    { 1: 36.7081, 2: 73.4162, 3: 146.832, 4: 293.665, 5: 587.330, 6: 1174.66 }
-        , ds:   { 0: 19.4455, 1: 38.8909, 2: 77.7817, 3: 155.563, 4: 311.127, 5: 622.254, 6: 1244.51 }
-        , e:    { 1: 41.2034, 2: 82.4069, 3: 164.814, 4: 329.628, 5: 659.255, 6: 1318.51 }        
+        //f:      { 0:21 1: 43.6535, 2: 87.3071, 3: 174.614, 4: 349.228, 5: 698.45, 6: 1396.91 }
+        //, fs:   { 1: 46.2493, 2: 92.4986, 3: 184.997, 4: 369.994, 5: 739.989, 6: 1479.98 }
+        //, g:    { 1: 48.9994, 2: 97.9989, 3: 195.998, 4: 391.995, 5: 783.991, 6: 1567.98 }
+        //, gs:   { 1: 51.9131, 2: 103.826, 3: 207.652, 4: 415.305, 5: 830.609, 6: 1661.22 }
+        //, a:    { 0: 27.5000, 1: 55.0000, 2: 110.000, 3: 220.00,  4: 440.00, 5: 880.000, 6: 1760.00 }
+        //, as:   { 0: 29.1352, 1: 58.2705, 2: 116.541, 3: 233.082, 4: 466.164, 5: 932.328, 6: 1864.66 }
+        //, b:    { 0: 30.8677, 1: 61.7354, 2: 123.471, 3: 246.942, 4: 493.883, 5: 987.767, 6: 1975.53 }
+        //, c: { 1: 32.7032, 2: 65.4064, 3: 130.813, 4: 261.626, 5: 523.2512, 6: 1046.50, 7: 2093.00, 8: 4186.01 }
+        //, cs:   { 1: 34.6478, 2: 69.2957, 3: 138.591, 4: 277.183, 5: 554.365, 6: 1108.73 }
+        //, d:    { 1: 36.7081, 2: 73.4162, 3: 146.832, 4: 293.665, 5: 587.330, 6: 1174.66 }
+        //, ds:   { 0: 19.4455, 1: 38.8909, 2: 77.7817, 3: 155.563, 4: 311.127, 5: 622.254, 6: 1244.51 }
+        //, e:    { 1: 41.2034, 2: 82.4069, 3: 164.814, 4: 329.628, 5: 659.255, 6: 1318.51 }        
     }
-    //, keys: {
-   
-    //    81:
-    //    {
-
-    //        osc: null
-    //        , vol: null
-    //        , name: "ds"
-    //        , pitch: 3
-    //    }
-    //    ,
-    //    65:
-    //    {
-
-    //        osc: null
-    //        , vol: null
-    //        , name: "e"
-    //        , pitch: 3
-    //    }
-    //    ,
-    //    83:
-    //    {
-
-    //        osc: null
-    //        , vol: null
-    //        , name: "f"
-    //        , pitch: 3
-    //    }
-    //    ,69:
-    //    {
-
-    //        osc: null
-    //        , vol: null
-    //        , name: "fs"
-    //        , pitch: 3
-    //    }
-    //    ,68:
-    //    {
-
-    //        osc: null
-    //        , vol: null
-    //        , name: "g"
-    //        , pitch: 3
-    //    }
-    //    ,82:
-    //    {
-
-    //        osc: null
-    //        , vol: null
-    //        , name: "gs"
-    //        , pitch: 3
-    //    }
-	//    , 70:
-    //    {
-
-    //        osc: null
-    //        , vol: null
-    //        , name: "a"
-    //        , pitch: 3
-    //    }
-    //    , 84:
-    //    {
-
-    //        osc: null
-    //        , vol: null
-    //        , name: "as"
-    //        , pitch: 3
-    //    }
-    //    , 71:
-    //    {
-
-    //        osc: null
-    //        , vol: null
-    //        , name: "b"
-    //        , pitch: 3	
-    //    }
-
-    //    ,72:
-    //        {
-    //            osc: null
-    //            , vol: null
-    //            , name: "c"
-    //            , pitch: 4
-    //        }
-    //    , 85:
-    //        {
-
-    //            osc: null
-    //            , vol: null
-    //            , name: "cs"
-    //            , pitch: 4
-    //        }        
-    //    , 74:
-    //        {
-    //            osc: null
-    //            , vol: null
-    //            , name: "d"
-    //            , pitch: 4
-    //        }
-    //    , 73:
-    //        {
-
-    //            osc: null
-    //            , vol: null
-    //            , name: "ds"
-    //            , pitch: 4
-    //        }
-    //    , 75:
-    //        {
-    //            osc: null
-    //            , vol: null
-    //            , name: "e"
-    //            , pitch: 4
-    //        }
-    //    , 76:
-    //        {
-    //            osc: null
-    //            , vol: null
-    //            , name: "f"
-    //            , pitch: 4
-    //        }
-    //    , 80:
-    //        {
-    //            osc: null
-    //            , vol: null
-    //            , name: "fs"
-    //            , pitch: 4
-    //        }        
-    //    , 186:
-    //        {
-    //            osc: null
-    //            , name: "g"
-    //            , pitch: 4
-    //        }
-    //    , 219:
-    //        {
-    //            osc: null
-    //            , name: "gs"
-    //            , pitch: 4
-    //        }
-    //    , 222:
-    //        {
-    //            osc: null
-    //            , name: "a"
-    //            , pitch: 4
-    //        }
-    //    //415.305
-
-    //}
+    
     , keys: []       
         //, 81:
         //    {
