@@ -1,6 +1,11 @@
 ﻿var wikSound =
 {
     cnv: {}
+    , recording: false
+    , recStart: new Date()
+    , tapes: []
+    , tape: []
+    , curTape: 0
     , bg: "#FFFFFF"
     , lastKeyCode: ""
     , lastKeyId: ""
@@ -123,12 +128,13 @@
         wikSound.cnv = cnv;
         wikSound.initNotes();
         wikSound.initKeys();
-        var ctx = wikSound.getCtx();
+        //var ctx = wikSound.getCtx();
         wikSound.createAllNotes();
         cnv.onkeydown = wikSound.keydown
         cnv.onkeyup = wikSound.keyup
-        ctx.fillStyle = "#000000";
-        ctx.fillText("Got here", 50, 50);
+        //ctx.fillStyle = "#000000";
+        //ctx.fillText("Got here", 50, 50);
+        wikSound.repaint();
 
     }
 
@@ -185,6 +191,21 @@
         }
     }
 
+    , checkRecording: function(evt,tp){
+        if (wikSound.recording) {
+            wikSound.tape[wikSound.tape.length] = {
+                t: (new Date() - wikSound.recStart)
+                ,tp: tp
+                , evt:
+                    {                        
+                        keyCode: evt.keyCode
+                        , keyIdentifier: evt.keyIdentifier
+                        , metaKey: evt.metaKey
+                    }
+            };
+        }
+    }
+
     , createNote: function (stx, pitch, vol) {
         var ret = { vol: null, osc: null };
         ret.vol = stx.createGainNode();
@@ -197,6 +218,22 @@
         return ret;
     }
 
+    ,playTapeFromSelectId: function(selId)
+    {
+        var sel = document.getElementById(selId);
+        if (sel != null) {
+            var opt = sel.options[sel.selectedIndex]
+            if (opt != null) {
+                wikSound.playTape(opt.tapeIndex);
+            }
+        }
+    }
+
+    , playTape: function (num)
+    {
+        wikSound.tape = wikSound.tapes[num];
+        wikSound.play();
+    }
     , keydown: function (evt) {
         if (evt.keyCode != null || evt.keyIdentifier != null || evt.metaKey != null) {
             if (evt.keyCode != null) {
@@ -214,9 +251,10 @@
             var octave = 0;
             if (wikSound.usingExternal) {
                 var bRepaint = false;
-                if (evt.keyCode >= 48 && evt.keyCode <= 57) {
+                if (evt.keyCode >= 48 && evt.keyCode <= 57) {                    
                     wikSound.currentOctave = evt.keyCode - 48;
                     bRepaint = true;
+                    wikSound.checkRecording(evt, "down");
                 }
                 else if (wikSound.keyboardMap.indexOf(evt.keyCode) > -1) {                    
                     var note = wikSound.keys[wikSound.currentOctave][wikSound.keyboardMap.indexOf(evt.keyCode)];
@@ -226,9 +264,49 @@
                         wikSound.lastNote = note.name;
                         wikSound.lastPitch = wikSound.notes[note.name][wikSound.currentOctave];
                         if (note.vol != null) {
+                            wikSound.checkRecording(evt, "down");
                             note.vol.gain.value = 0.5;
                         }
                         bRepaint = true;
+                    }
+                }
+                else if (evt.keyCode == 90) {
+                    wikSound.recStart = new Date();
+                    wikSound.recording = true;
+                    wikSound.tape = [];
+                    wikSound.tape.length = 0;
+                    var StartEvent = {
+                        keyCode: wikSound.currentOctave + 48
+                        , keyIdentifier: evt.keyIdentifier
+                        , metaKey: evt.metaKey                    
+                    };
+                    wikSound.checkRecording(StartEvent, "down");
+                }
+                else if (evt.keyCode == 88) {                    
+                    wikSound.recording = false;
+                    var newIdx = wikSound.tapes.length
+                    wikSound.tapes[newIdx] = wikSound.tape;
+                    var sel = document.getElementById("selTapes");
+                    if (sel != null) {
+                        var opt = document.createElement("option");
+                        opt.tapeIndex = newIdx;
+                        opt.innerHTML = newIdx.toString();                        
+                        sel.appendChild(opt);
+
+                    }
+                }
+                else if (evt.keyCode == 67 && !wikSound.recording) {
+                    wikSound.play();
+                }
+                else if (evt.keyCode == 81 && !wikSound.recording)
+                {
+                    for (var o in wikSound.keys) {
+                        for (var k in wikSound.keys[o]) {
+                            wikSound.keys[o][k].vol.gain.value = 0;
+                            var iKey = (parseInt(o) * 12) + parseInt(k);
+                            wikSound.keysDown[iKey] = false;
+                            bRepaint = true;
+                        }
                     }
                 }
 
@@ -265,7 +343,28 @@
         }
     }
 
+    , player: function () {
+        var e = wikSound.tape[wikSound.curTape];
+        if(e.tp == "down")
+        {
+            wikSound.keydown(e.evt);
+        }
+        else if(e.tp == "up")
+        {
+            wikSound.keyup(e.evt);
+        }
+        wikSound.curTape += 1;
+    }
     
+    , play: function () {
+        wikSound.curTape = 0;
+        for (var i in wikSound.tape) {
+            var e = wikSound.tape[i];
+            if (e.tp == "down" || e.tp == "up") {
+                setTimeout(wikSound.player, e.t);
+            }            
+        }
+    }    
 
     , keyup: function (evt) {
         if (evt.keyCode != null) {
@@ -275,6 +374,7 @@
                     var iKey = (wikSound.currentOctave * 12) + wikSound.keyboardMap.indexOf(evt.keyCode);
                     wikSound.keysDown[iKey] = false;
                     if (key.osc != null) {
+                        wikSound.checkRecording(evt, "up");
                         key.vol.gain.value = 0;
                     }
                     wikSound.repaint();
@@ -314,14 +414,14 @@
     }
     
     , keys: []       
-        //, 81:
-        //    {
-        //        osc: null
-        //        , name: "a"
-        //        , pitch: 6
-        //    }
+    //, 81:
+    //    {
+    //        osc: null
+    //        , name: "a"
+    //        , pitch: 6
+    //    }
 
-        //415.305   
+    //415.305   
     , setStop: function (st, val)
     {
         for (var octave in wikSound.keys) {
