@@ -21,6 +21,9 @@
     , keyboardMap: [70, 84, 71, 89, 72, 74, 73, 75, 79, 76, 80, 186]
     , keysDown: []
     , keyTypes: []
+    , settingVolume: false
+    , volumeTens: -1
+    , volumeCur: 0
     , presets:
         {
             1: {
@@ -251,10 +254,28 @@
             var octave = 0;
             if (wikSound.usingExternal) {
                 var bRepaint = false;
-                if (evt.keyCode >= 48 && evt.keyCode <= 57) {                    
-                    wikSound.currentOctave = evt.keyCode - 48;
-                    bRepaint = true;
-                    wikSound.checkRecording(evt, "down");
+                if (evt.keyCode >= 48 && evt.keyCode <= 57) {
+                    if (wikSound.settingVolume == true) {
+                        var volVal = evt.keyCode - 48;
+                        if (wikSound.volumeTens < 0) {
+                            wikSound.volumeTens = volVal * 10;
+                        }
+                        else {
+                            var st = "Master";
+                            if (wikSound.volumeCur > 0) {
+                                st = Math.pow(2, wikSound.volumeCur).toString();
+                            }
+                            document.getElementById("stopSlider" + st).value = (wikSound.volumeTens + volVal);
+                            wikSound.setStopVals("Master");
+                            wikSound.settingVolume = false;
+                            wikSound.volumeTens = -1;
+                        }
+                    }
+                    else {
+                        wikSound.currentOctave = evt.keyCode - 48;
+                        bRepaint = true;
+                        wikSound.checkRecording(evt, "down");
+                    }
                 }
                 else if (wikSound.keyboardMap.indexOf(evt.keyCode) > -1) {                    
                     var note = wikSound.keys[wikSound.currentOctave][wikSound.keyboardMap.indexOf(evt.keyCode)];
@@ -309,6 +330,20 @@
                         }
                     }
                 }
+                else if (evt.keyCode == 86)
+                {
+                    wikSound.settingVolume = true;
+                }
+                else if (evt.keyCode == 219) {
+                    wikSound.volumeCur = wikSound.volumeCur - 1;
+                    if (wikSound.volumeCur < 0) {
+                        wikSound.volumeCur = 5;
+                    }
+                }
+                else if (evt.keyCode == 221) {
+                    wikSound.volumeCur = (wikSound.volumeCur + 1) % 6;
+                }
+                
 
                 if (bRepaint) {
                     wikSound.repaint();
